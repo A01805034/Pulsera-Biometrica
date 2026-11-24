@@ -212,18 +212,17 @@ def main():
             else:
                 print("Invalid data type. Returned to main menu.")
 
-        elif command == "live data" and has_logged_in:
-            if len(devices) > 1:
-                print("Which device will you select?")
-                for i in range(len(devices)):
-                    print(i)
-                selection = int(input())
-                for sensor in devices[selection]:
-                    if sensor.type == "oxim-fc":
-                        oxim_id = sensor.model + "-" + str(sensor.id)
-                    elif sensor.type == "temp":
-                        temp_id = sensor.model + "-" + str(sensor.id)
-
+        elif command == "live data" and has_logged_in and len(devices) != 0:
+            print("Which device will you select?")
+            for i in range(len(devices)):
+                print(i)
+            selection = int(input())
+            for sensor in devices[selection].sensors:
+                if sensor.type == "oxim-fc":
+                    oxim_id = sensor.model + "-" + str(sensor.id)
+                elif sensor.type == "temp":
+                    temp_id = sensor.model + "-" + str(sensor.id)
+                
             dataType = input("Which data type would you like to visualize?\n"
                              "Type \"help\" for information on what you can visualize.\n")
             if dataType == "help":
