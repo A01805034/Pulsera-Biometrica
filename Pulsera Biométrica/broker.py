@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import platform
 import subprocess
 
-def livePlot(xlabel: str, ylabel: str, topic: str, username: str, password: str, title: str):
+def livePlot(xlabel: str, ylabel: str, topic: str, username: str, password: str, title: str, *args : function[list[float]], **fargs):
     plt.ion()
     y = [float(0) for i in range(20)]
     x = [float(0) for i in range(20)]
@@ -24,6 +24,8 @@ def livePlot(xlabel: str, ylabel: str, topic: str, username: str, password: str,
             nonlocal ylabel
             nonlocal topic
             nonlocal title
+            nonlocal args
+            nonlocal fargs
 
             print(f"Received `{msg.payload.decode()}` from `{msg.topic}` topic")
             y.append(float(msg.payload.decode()))
@@ -39,6 +41,13 @@ def livePlot(xlabel: str, ylabel: str, topic: str, username: str, password: str,
             plt.xticks(rotation=45, ha='right')
             plt.subplots_adjust(bottom=0.30)
             plt.pause(0.5)
+            all_functional = True
+            for data in y:
+                if data == float(0):
+                    all_functional = False
+            if all_functional:
+                for function in args:
+                    function(y, dt.datetime.now(), **fargs)
 
         client.subscribe(topic)
         client.on_message = on_message
