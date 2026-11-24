@@ -86,8 +86,8 @@ def visualize(data : list[tuple[float, dt.datetime]], type : str, title : str):
     plt.subplots_adjust(bottom=0.30)
     return plt.show()
     
-
 def main():
+    #Loading
     if platform.system() == "Windows":
         subprocess.run(["cls"], shell=True)
     else:
@@ -95,7 +95,7 @@ def main():
     has_logged_in = False
     database = db.Database()
     print("Welcome to the Biometric Bracelet Companion App!")
-    while(True):
+    while(True): #Main Loop
         command = input("What would you like to do?"
                         "\nEnter \"help\" for more information.\n")
         
@@ -154,8 +154,10 @@ def main():
                       "\"create account\": Create an account")
             else:
                 print("\"log out\": Log out of the program\n"
-                      "\"visualize\": Visualize a chart on a type of biometric\n" \
-                      "\"live data\": Visualize the live data from your sensor\n")
+                      "\"visualize\": Visualize a chart on a type of biometric\n"
+                      "\"live data\": Visualize live data from your sensor\n"
+                      "\"add device\": Link a device to your account\n"
+                      "\"remove device\": Remove a device to your account")
 
         elif command == "log out" and has_logged_in:
             user = None
@@ -164,6 +166,10 @@ def main():
             has_logged_in = False
             biometrics = None
             user_biometrics = None
+            if platform.system() == "Windows":
+                subprocess.run(["cls"], shell=True)
+            else:
+                subprocess.run(["clear"], shell=True)
 
         elif command == "create account" and not has_logged_in:
             username = input("Provide the username: ")
@@ -231,6 +237,10 @@ def main():
                     user.add_device(dvc)
                 for contact in contacts:
                     user.link(contact)
+                if platform.system() == "Windows":
+                    subprocess.run(["cls"], shell=True)
+                else:
+                    subprocess.run(["clear"], shell=True)
                 print("Account succesfully created! To log in, run the corresponding command.")
 
         elif command == "visualize" and has_logged_in:
@@ -239,11 +249,59 @@ def main():
             if dataType == "help":
                 print("\"temperature\", \"oximetry\", \"cardiacFrequency\"\nReturned to main menu.")
             elif dataType == "temperature" or dataType == "oximetry" or dataType == "cardiacFrequency":
-                visualize(user_biometrics[dataType], dataType, "Registered " + dataType + " of " + user.name)
+                range_selector = input("Would you like to visualize from a range? Type \"yes\" if so and anything else if not.")
+                if range_selector.lower() != "yes":
+                    visualize(user_biometrics[dataType], dataType, "Registered " + dataType + " of " + user.name)
+                    if platform.system() == "Windows":
+                        subprocess.run(["cls"], shell=True)
+                    else:
+                        subprocess.run(["clear"], shell=True)
+                else:
+                    year = int(input("Please type the lower bound year: "))
+                    month = int(input("Please type the lower bound month: "))
+                    day = int(input("Please type the lower bound day: "))
+                    hour = int(input("Please type the lower bound hour: "))
+                    minute = int(input("Please type the lower bound minute: "))
+                    second = int(input("Please type the lower bound second: "))
+                    lower_bound = dt.datetime(year, month, day, hour, minute, second)
+                    year = int(input("Please type the upper bound year: "))
+                    month = int(input("Please type the upper bound month: "))
+                    day = int(input("Please type the upper bound day: "))
+                    hour = int(input("Please type the upper bound hour: "))
+                    minute = int(input("Please type the upper bound minute: "))
+                    second = int(input("Please type the upper bound second: "))
+                    upper_bound = dt.datetime(year, month, day, hour, minute, second)
+                    if dataType == "temperature":
+                        sql = "SELECT temperatura, tiempoRegistro FROM temperatura NATURAL JOIN biometrico WHERE username = %s AND tiempoRegistro BETWEEN %s AND %s"
+                        visualize(database(sql, user.username, lower_bound, upper_bound), dataType, "Registered " + dataType + " of " + user.name
+                             + " between " + lower_bound.strftime("%d/%m/%Y %H:%M:%S") + " and " + upper_bound.strftime("%d/%m/%Y %H:%M:%S"))
+                        if platform.system() == "Windows":
+                            subprocess.run(["cls"], shell=True)
+                        else:
+                            subprocess.run(["clear"], shell=True)
+                    elif dataType == "oximetry":
+                        sql = "SELECT oximetria, tiempoRegistro FROM oximetria NATURAL JOIN biometrico WHERE username = %s AND tiempoRegistro BETWEEN %s AND %s"
+                        visualize(database(sql, user.username, lower_bound, upper_bound), dataType, "Registered " + dataType + " of " + user.name
+                             + " between " + lower_bound.strftime("%d/%m/%Y %H:%M:%S") + " and " + upper_bound.strftime("%d/%m/%Y %H:%M:%S"))
+                        if platform.system() == "Windows":
+                            subprocess.run(["cls"], shell=True)
+                        else:
+                            subprocess.run(["clear"], shell=True)
+                    else:
+                        sql = "SELECT frecuenciaCardiaca, tiempoRegistro FROM frecuenciascardiacas NATURAL JOIN biometrico WHERE username = %s AND tiempoRegistro BETWEEN %s AND %s"
+                        visualize(database(sql, user.username, lower_bound, upper_bound), dataType, "Registered " + dataType + " of " + user.name
+                             + " between " + lower_bound.strftime("%d/%m/%Y %H:%M:%S") + " and " + upper_bound.strftime("%d/%m/%Y %H:%M:%S"))
+                        if platform.system() == "Windows":
+                            subprocess.run(["cls"], shell=True)
+                        else:
+                            subprocess.run(["clear"], shell=True)
             else:
                 print("Invalid data type. Returned to main menu.")
 
-        elif command == "live data" and has_logged_in and len(devices) != 0:
+        elif command == "live data" and has_logged_in:
+            if len(devices) == 0:
+                print("Can't see data - you need a device!")
+                continue
             print("Which device will you select?")
             for i in range(len(devices)):
                 print(i)
@@ -261,14 +319,71 @@ def main():
             elif dataType == "temperature":
                 bk.livePlot("Time", "Temperature(C)", "reto/temperatura/" + str(temp_id), user.username, user.password,
                             "Temperatura registrada de " + user.name, warn_temperature, device = devices[0], user = user)
+                if platform.system() == "Windows":
+                    subprocess.run(["cls"], shell=True)
+                else:
+                    subprocess.run(["clear"], shell=True)
             elif dataType == "oximetry":
                 bk.livePlot("Time", "Oximetry %", "reto/oximetria/" + str(oxim_id), user.username, user.password,
                             "Oximetría registrada de " + user.name, warn_oximetry, device = devices[0], user = user)
+                if platform.system() == "Windows":
+                    subprocess.run(["cls"], shell=True)
+                else:
+                    subprocess.run(["clear"], shell=True)
             elif dataType == "cardiacFrequency":
                 bk.livePlot("Time", "Cardiac Frequency", "reto/frecuenciaCardiaca/" + str(oxim_id), user.username, user.password,
                             "Frecuencia Cardiaca registrada de " + user.name, warn_cardiacFrequency, device = devices[0], user = user)
+                if platform.system() == "Windows":
+                    subprocess.run(["cls"], shell=True)
+                else:
+                    subprocess.run(["clear"], shell=True)
             else:
                 print("Invalid data type. Returned to main menu.")
+
+        elif command == "add device" and has_logged_in:
+            device_id = int(input("What's the device ID?\n"))
+            model = input("What's your device model?\n")
+            new_device = dv.Device(device_id, model)
+            while True:
+                sensor_adder = input("Would you like to add a sensor? Type\"yes\" to add, anything else to stop adding.\n")
+                if sensor_adder.lower() == "yes":
+                    sensor_id = int(input("What's the sensor id?"))
+                    sensor_model = input("What's the sensor model?")
+                    sensor_type = input("Please type the type of data your sensor gives as your manual indicates:")
+                    new_device.add_sensor(sensor_id, sensor_model, sensor_type)
+                else:
+                    print("Current Sensors Added: ")
+                    for sensor in new_device.sensors:
+                        print(str(sensor.id) + "-" + sensor.model)
+                    sensor_adder = input("Would you like to stop now or keep adding sensors? Type\"yes\" to stop.\n")
+                    if sensor_adder.lower() == "yes":
+                        user.add_device(new_device.id)
+                        devices.append(new_device)
+                        if platform.system() == "Windows":
+                            subprocess.run(["cls"], shell=True)
+                        else:
+                            subprocess.run(["clear"], shell=True)
+                        print("Device Added! You can now start using it.")
+                        break
+
+        elif command == "remove device":
+            print("Current devices: ")
+            for device in devices:
+                print(device.id)
+            try:
+                old_device = int(input("Type the ID of the device you wish to remove, or type any non-numeric character to abort.\n"))
+                user.remove_device(old_device)
+                if platform.system() == "Windows":
+                    subprocess.run(["cls"], shell=True)
+                else:
+                    subprocess.run(["clear"], shell=True)
+                print("Device succesfully removed.")
+            except:
+                if platform.system() == "Windows":
+                    subprocess.run(["cls"], shell=True)
+                else:
+                    subprocess.run(["clear"], shell=True)
+                print("Aborted Deletion.")
         
         else:
             print("Please enter a valid command.\n")
