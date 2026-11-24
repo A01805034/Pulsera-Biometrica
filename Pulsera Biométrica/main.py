@@ -220,9 +220,9 @@ def main():
                 selection = int(input())
                 for sensor in devices[selection]:
                     if sensor.type == "oxim-fc":
-                        oxim_id = sensor.model + "-" + sensor.id
+                        oxim_id = sensor.model + "-" + str(sensor.id)
                     elif sensor.type == "temp":
-                        temp_id = sensor.model + "-" + sensor.id
+                        temp_id = sensor.model + "-" + str(sensor.id)
 
             dataType = input("Which data type would you like to visualize?\n"
                              "Type \"help\" for information on what you can visualize.\n")
