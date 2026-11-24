@@ -7,6 +7,37 @@ import subprocess
 import matplotlib.pyplot as plt
 import datetime as dt
 import broker as bk
+import mysql
+from plyer import notification as nt
+
+def send_alert(device : dv.Device, user : us.User, time : dt.datetime, type : str, description : str):
+    database = db.Database()
+    try:
+        sql = "INSERT INTO dispositivopersona VALUES (%s, %s, %s, %s, %s)"
+        database(sql, device.id, user.username, time, type, description)
+        find = "SELECT contact FROM usuariocontacto WHERE username = %s"
+        contacts = database(find, user.username)
+        for contact in contacts:
+            database(sql, device.id, contact[0], time, "From " + user.name + ":\n" + type, description)
+        return nt.notify("Alert: " + type, description)
+    except mysql.connector.errors.IntegrityError:
+        return nt.notify("Alert: " + type, description + "\nWarning: Couldn't register in the database!")
+
+def warn_temperature(values : list[float], time : dt.datetime, device : dv.Device, user : us.User):
+    if (average := sum(values) / len(values)) > 37.2:
+        return send_alert(device, user, time, "High Temperature", "A high temperature has been detected: " + str(average) + "\nEmission time: " + time.strftime("%d/%m/%Y %H:%M:%S"))
+    elif average < 36.1:
+        return send_alert(device, user, time, "Low Temperature", "A low temperature has been detected: " + str(average) + "\nEmission time: " + time.strftime("%d/%m/%Y %H:%M:%S"))
+
+def warn_oximetry(values : list[float], time : dt.datetime, device : dv.Device, user : us.User):
+    if(average := sum(values) / len(values)) < float(95):
+        return send_alert(device, user, time, "Low Oxygen Level", "A low oxygen level has been detected: " + str(average) + "\nEmission time: " + time.strftime("%d/%m/%Y %H:%M:%S"))
+
+def warn_cardiacFrequency(values : list[float], time : dt.datetime, device : dv.Device, user : us.User):
+    if(average := sum(values) / len(values)) < float(60): #Asumiendo estado de reposo y que el usuario es un adulto promedio
+        return send_alert(device, user, time, "Low Cardiac Frequency", "A low cardiac frequency has been detected while resting: " + str(average) + "\nEmission time: " + time.strftime("%d/%m/%Y %H:%M:%S"))
+    elif average > 100: #Asumiendo estado de reposo y que el usuario es un adulto promedio
+        return send_alert(device, user, time, "High Cardiac Frequency", "A high cardiac frequency has been detected while resting: " + str(average) + "\nEmission time: " + time.strftime("%d/%m/%Y %H:%M:%S"))
 
 def sort_biometrics(biometric : tuple) -> dt.datetime:
     return biometric[1]
@@ -229,13 +260,13 @@ def main():
                 print("\"temperature\", \"oximetry\", \"cardiacFrequency\"\nReturned to main menu.")
             elif dataType == "temperature":
                 bk.livePlot("Time", "Temperature(C)", "reto/temperatura/" + str(temp_id), user.username, user.password,
-                            "Temperatura registrada de " + user.name)
+                            "Temperatura registrada de " + user.name, warn_temperature, device = devices[0], user = user)
             elif dataType == "oximetry":
                 bk.livePlot("Time", "Oximetry %", "reto/oximetria/" + str(oxim_id), user.username, user.password,
-                            "Oximetría registrada de " + user.name)
+                            "Oximetría registrada de " + user.name, warn_oximetry, device = devices[0], user = user)
             elif dataType == "cardiacFrequency":
                 bk.livePlot("Time", "Cardiac Frequency", "reto/frecuenciaCardiaca/" + str(oxim_id), user.username, user.password,
-                            "Frecuencia Cardiaca registrada de " + user.name)
+                            "Frecuencia Cardiaca registrada de " + user.name, warn_cardiacFrequency, device = devices[0], user = user)
             else:
                 print("Invalid data type. Returned to main menu.")
         
