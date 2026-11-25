@@ -311,28 +311,45 @@ def main():
                     oxim_id = sensor.model + "-" + str(sensor.id)
                 elif sensor.type == "temp":
                     temp_id = sensor.model + "-" + str(sensor.id)
+                elif sensor.type == "gyro":
+                    gyro_id = sensor.model + "-" + str(sensor.id)
                 
             dataType = input("Which data type would you like to visualize?\n"
                              "Type \"help\" for information on what you can visualize.\n")
             if dataType == "help":
-                print("\"temperature\", \"oximetry\", \"cardiacFrequency\"\nReturned to main menu.")
+                print("\"temperature\", \"oximetry\", \"cardiacFrequency\", "
+                      "\"acceleration\", \"rotation\"\nReturned to main menu.")
             elif dataType == "temperature":
                 bk.livePlot("Time", "Temperature(C)", "reto/temperatura/" + str(temp_id), user.username, user.password,
-                            "Temperatura registrada de " + user.name, warn_temperature, device = devices[0], user = user)
+                            "Temperatura registrada de " + user.name, warn_temperature, device = devices[selection], user = user)
                 if platform.system() == "Windows":
                     subprocess.run(["cls"], shell=True)
                 else:
                     subprocess.run(["clear"], shell=True)
             elif dataType == "oximetry":
                 bk.livePlot("Time", "Oximetry %", "reto/oximetria/" + str(oxim_id), user.username, user.password,
-                            "Oximetría registrada de " + user.name, warn_oximetry, device = devices[0], user = user)
+                            "Oximetría registrada de " + user.name, warn_oximetry, device = devices[selection], user = user)
                 if platform.system() == "Windows":
                     subprocess.run(["cls"], shell=True)
                 else:
                     subprocess.run(["clear"], shell=True)
             elif dataType == "cardiacFrequency":
                 bk.livePlot("Time", "Cardiac Frequency", "reto/frecuenciaCardiaca/" + str(oxim_id), user.username, user.password,
-                            "Frecuencia Cardiaca registrada de " + user.name, warn_cardiacFrequency, device = devices[0], user = user)
+                            "Frecuencia Cardiaca registrada de " + user.name, warn_cardiacFrequency, device = devices[selection], user = user)
+                if platform.system() == "Windows":
+                    subprocess.run(["cls"], shell=True)
+                else:
+                    subprocess.run(["clear"], shell=True)
+            elif dataType == "acceleration":
+                bk.liveTrack("X", "Y", "Z", "reto/aceleracion/" + str(gyro_id), user.username, user.password, "Acceleración registrada de "
+                             + user.username + " (m/s^2)")
+                if platform.system() == "Windows":
+                    subprocess.run(["cls"], shell=True)
+                else:
+                    subprocess.run(["clear"], shell=True)
+            elif dataType == "rotation":
+                bk.liveTrack("Pitch", "Yaw", "Roll", "reto/rotacion/" + str(gyro_id), user.username, user.password, "Rotación registrada de "
+                             + user.username + " (rad/s^2)")
                 if platform.system() == "Windows":
                     subprocess.run(["cls"], shell=True)
                 else:

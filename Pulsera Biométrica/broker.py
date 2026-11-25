@@ -3,6 +3,7 @@ import datetime as dt
 import matplotlib.pyplot as plt
 import platform
 import subprocess
+import json
 
 def livePlot(xlabel: str, ylabel: str, topic: str, username: str, password: str, title: str, *args : function[list[float]], **fargs):
     plt.ion()
@@ -27,7 +28,7 @@ def livePlot(xlabel: str, ylabel: str, topic: str, username: str, password: str,
             nonlocal args
             nonlocal fargs
 
-            print(f"Received `{msg.payload.decode()}` from `{msg.topic}` topic")
+            # print(f"Received `{msg.payload.decode()}` from `{msg.topic}` topic")
             y.append(float(msg.payload.decode()))
             x.append(dt.datetime.now().strftime('%H:%M:%S'))
             fig.remove()
@@ -70,5 +71,90 @@ def livePlot(xlabel: str, ylabel: str, topic: str, username: str, password: str,
             plt.close()
             break
 
+def liveTrack(xlabel : str, ylabel: str, zlabel: str, topic: str, username: str, password: str, title: str, *args: function[list[float], list[float], list[float]], **fargs):
+    plt.ion()
+    z = [float(0) for i in range(20)]
+    y = [float(0) for i in range(20)]
+    x = [float(0) for i in range(20)]
+    colors = [0.1 * i for i in range(20)]
+    fig = plt.figure()
+    ax = fig.add_subplot(projection = '3d')
+    plt.pause(1)
+
+    def on_connect(client, userdata, flags, reason_code, properties):
+        print("To stop the program, enter Control + C or equivalent in the terminal.")
+
+    def subscribe(client: paho):
+
+        def on_message(client, userdata, msg): 
+            nonlocal fig
+            nonlocal ax
+            nonlocal z
+            nonlocal y
+            nonlocal x
+            nonlocal xlabel
+            nonlocal ylabel
+            nonlocal zlabel
+            nonlocal topic
+            nonlocal title
+            nonlocal args
+            nonlocal fargs
+            nonlocal colors
+
+            # print(f"Received `{msg.payload.decode()}` from `{msg.topic}` topic")
+            data = json.loads(msg.payload.decode())
+            z.append(data['z'])
+            y.append(data['y'])
+            x.append(data['x'])
+            ax.remove()
+            plt.clf()
+            ax = fig.add_subplot(projection = '3d')
+            ax.set_xlabel(xlabel)
+            ax.set_ylabel(ylabel)
+            ax.set_zlabel(zlabel)
+            plt.title(title)
+            x = x[-20:]
+            y = y[-20:]
+            z = z[-20:]
+            ax.scatter(x, y, z, c= colors, cmap= "Blues", depthshade= False)
+            plt.pause(0.5)
+            all_functional = True
+            for xs in x:
+                if xs == float(0):
+                    all_functional = False
+            if all_functional:
+                for ys in y:
+                    if ys == float(0):
+                        all_functional = False
+                if all_functional:
+                    for zs in z:
+                        if zs == float(0):
+                            all_functional = False
+                    if all_functional:
+                        for function in args:
+                            function(x, y, z, dt.datetime.now(), **fargs)
+
+        client.subscribe(topic)
+        client.on_message = on_message
+
+    client = paho.Client(paho.CallbackAPIVersion.VERSION2)
+    client.on_connect = on_connect
+    client.username_pw_set(username, password)
+    client.connect('localhost', 1883)
+    subscribe(client)
+    while(True):
+        try:
+            client.loop_forever()
+        except KeyboardInterrupt:
+            client.disconnect()
+            if platform.system() == "Windows":
+                subprocess.run(["cls"], shell=True)
+            else:
+                subprocess.run(["clear"], shell=True)
+            plt.ioff()
+            plt.close()
+            break
+
 if __name__ == "__main__":
-    livePlot("Tiempo", "Datos Recibidos", "reto/admin/#", "admin", "pass", "Testing")
+    # livePlot("Tiempo", "Datos Recibidos", "reto/admin/#", "admin", "pass", "Testing")
+    liveTrack("X", "Y", "Z", "reto/admin/#", "root", "", "Test")
