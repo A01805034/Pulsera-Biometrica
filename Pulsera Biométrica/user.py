@@ -118,6 +118,10 @@ class User:
         except:
             return print("Database Not Updated!")
 
+    def get_contacts(self):
+        if self.database("SELECT username FROM contacto WHERE username = %s", self.username)[0][0] == self.username:
+            return self.database("SELECT username FROM usuariocontacto WHERE contact = %s", self.username)
+
 if __name__ == "__main__":
 
     import subprocess

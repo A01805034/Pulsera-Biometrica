@@ -67,9 +67,48 @@ def log_in(username : str, password : str):
             for email in emails:
                 user.emails.append(email[0])
             return user
+        else:
+            print("Either the username or the password is wrong. Please try again.")
+            return False
     except:
         print("Either the username or the password is wrong. Please try again.")
         return False
+
+def get_biometrics(user : us.User):
+    devices = get_devices(user)
+    user_biometrics = {}
+    user_biometrics["cardiacFrequency"] = []
+    user_biometrics["oximetry"] = []
+    user_biometrics["temperature"] = []
+    user_biometrics["acceleration"] = []
+    user_biometrics["rotation"] = []
+    for device in devices:
+        biometrics = device.get_biometrics(user.username)
+        user_biometrics["cardiacFrequency"] += biometrics["cardiacFrequency"]
+        user_biometrics["oximetry"] += biometrics["oximetry"]
+        user_biometrics["temperature"] += biometrics["temperature"]
+        user_biometrics["acceleration"] += biometrics["acceleration"]
+        user_biometrics["rotation"] += biometrics["rotation"]
+    user_biometrics["cardiacFrequency"].sort(key = sort_biometrics)
+    user_biometrics["oximetry"].sort(key = sort_biometrics)
+    user_biometrics["temperature"].sort(key = sort_biometrics)
+    user_biometrics["acceleration"].sort(key = sort_biometrics)
+    user_biometrics["rotation"].sort(key = sort_biometrics)
+    return user_biometrics
+
+def get_devices(user : us.User):
+    database = db.Database()
+    sql = "SELECT idDispositivo, modelo FROM dispositivo WHERE username = %s"
+    device_params = database(sql, user.username)
+    sql = "SELECT idSensor, modelo, tipoDato FROM sensor WHERE idDispositivo = %s"
+    devices = []
+    for device in device_params:
+        sensor_params = database(sql, device[0])
+        sensors = []
+        for sensor in sensor_params:
+            sensors.append((sensor[0], sensor[1], sensor[2]))
+        devices.append(dv.Device(device[0], device[1], *sensors))
+    return devices
 
 def visualize(data : list[tuple[float, dt.datetime]], type : str, title : str):
     fig, ax = plt.subplots()
@@ -116,36 +155,10 @@ def main():
             user = log_in(username, password)
             if user != False:
                 has_logged_in = True
-                sql = "SELECT idDispositivo, modelo FROM dispositivo WHERE username = %s"
-                device_params = database(sql, username)
-                sql = "SELECT idSensor, modelo, tipoDato FROM sensor WHERE idDispositivo = %s"
-                devices = []
-                for device in device_params:
-                    sensor_params = database(sql, device[0])
-                    sensors = []
-                    for sensor in sensor_params:
-                        sensors.append((sensor[0], sensor[1], sensor[2]))
-                    devices.append(dv.Device(device[0], device[1], *sensors))
+                devices = get_devices(user)
+                user_biometrics = get_biometrics(user)
                 username = None
                 password = None
-                user_biometrics = {}
-                user_biometrics["cardiacFrequency"] = []
-                user_biometrics["oximetry"] = []
-                user_biometrics["temperature"] = []
-                user_biometrics["acceleration"] = []
-                user_biometrics["rotation"] = []
-                for device in devices:
-                    biometrics = device.get_biometrics(user.username)
-                    user_biometrics["cardiacFrequency"] += biometrics["cardiacFrequency"]
-                    user_biometrics["oximetry"] += biometrics["oximetry"]
-                    user_biometrics["temperature"] += biometrics["temperature"]
-                    user_biometrics["acceleration"] += biometrics["acceleration"]
-                    user_biometrics["rotation"] += biometrics["rotation"]
-                user_biometrics["cardiacFrequency"].sort(key = sort_biometrics)
-                user_biometrics["oximetry"].sort(key = sort_biometrics)
-                user_biometrics["temperature"].sort(key = sort_biometrics)
-                user_biometrics["acceleration"].sort(key = sort_biometrics)
-                user_biometrics["rotation"].sort(key = sort_biometrics)
             
         elif command == "help":
             print("\"exit\": Leaves the Program")
@@ -157,7 +170,8 @@ def main():
                       "\"visualize\": Visualize a chart on a type of biometric\n"
                       "\"live data\": Visualize live data from your sensor\n"
                       "\"add device\": Link a device to your account\n"
-                      "\"remove device\": Remove a device to your account")
+                      "\"remove device\": Remove a device to your account\n"
+                      "\"trust \": Link this account with a trusted contact\n")
 
         elif command == "log out" and has_logged_in:
             user = None
@@ -244,6 +258,23 @@ def main():
                 print("Account succesfully created! To log in, run the corresponding command.")
 
         elif command == "visualize" and has_logged_in:
+            if len(user.get_contacts()) >= 1:
+                print("Which user would you like to view?\n" + user.username)
+                for contact in user.get_contacts():
+                    print(contact[0])
+                user_selection = input()
+                is_valid = False
+                for contact in user.get_contacts():
+                    if user_selection == contact or user_selection == user.username:
+                        is_valid = True
+                if not is_valid:
+                    print("Error: Invalid User!\nReturned to Main Menu.")
+                    continue
+            else:
+                user_selection = user.username
+            data = database("SELECT * FROM persona WHERE username = %s", user_selection)[0]
+            contact = us.User(data[0], data[2], data[3], data[4], data[5].year, data[5].month, data[5].day, data[6])
+            contact_biometrics = get_biometrics(contact)
             dataType = input("Which data type would you like to visualize?\n"
                              "Type \"help\" for information on what you can visualize.\n")
             if dataType == "help":
@@ -251,11 +282,20 @@ def main():
             elif dataType == "temperature" or dataType == "oximetry" or dataType == "cardiacFrequency":
                 range_selector = input("Would you like to visualize from a range? Type \"yes\" if so and anything else if not.")
                 if range_selector.lower() != "yes":
-                    visualize(user_biometrics[dataType], dataType, "Registered " + dataType + " of " + user.name)
+                    visualize(contact_biometrics[dataType], dataType, "Registered " + dataType + " of " + contact.name)
                     if platform.system() == "Windows":
                         subprocess.run(["cls"], shell=True)
                     else:
                         subprocess.run(["clear"], shell=True)
+                    if dataType == "temperature":
+                        print(database("SELECT MAX(temperatura) AS max_value, MIN(temperatura) AS min_value, AVG(temperatura) AS avg_value FROM temperatura NATURAL JOIN biometrico WHERE username = %s",
+                                       contact.username)[0],"= (maximum, minimum, average)")
+                    elif dataType == "oximetry":
+                        print(database("SELECT MAX(oximetria) AS max_value, MIN(oximetria) AS min_value, AVG(oximetria) AS avg_value FROM oximetria NATURAL JOIN biometrico WHERE username = %s",
+                        contact.username)[0],"= (maximum, minimum, average)")
+                    else:
+                        print(database("SELECT MAX(frecuenciaCardiaca) AS max_value, MIN(frecuenciaCardiaca) AS min_value, AVG(frecuenciaCardiaca) AS avg_value FROM frecuenciascardiacas NATURAL JOIN biometrico WHERE username = %s",
+                        contact.username)[0],"= (maximum, minimum, average)")
                 else:
                     year = int(input("Please type the lower bound year: "))
                     month = int(input("Please type the lower bound month: "))
@@ -273,28 +313,34 @@ def main():
                     upper_bound = dt.datetime(year, month, day, hour, minute, second)
                     if dataType == "temperature":
                         sql = "SELECT temperatura, tiempoRegistro FROM temperatura NATURAL JOIN biometrico WHERE username = %s AND tiempoRegistro BETWEEN %s AND %s"
-                        visualize(database(sql, user.username, lower_bound, upper_bound), dataType, "Registered " + dataType + " of " + user.name
+                        visualize(database(sql, contact.username, lower_bound, upper_bound), dataType, "Registered " + dataType + " of " + contact.name
                              + " between " + lower_bound.strftime("%d/%m/%Y %H:%M:%S") + " and " + upper_bound.strftime("%d/%m/%Y %H:%M:%S"))
                         if platform.system() == "Windows":
                             subprocess.run(["cls"], shell=True)
                         else:
                             subprocess.run(["clear"], shell=True)
+                        print(database("SELECT MAX(temperatura) AS max_value, MIN(temperatura) AS min_value, AVG(temperatura) AS avg_value FROM temperatura NATURAL JOIN biometrico WHERE username = %s AND tiempoRegistro BETWEEN %s AND %s",
+                        contact.username, lower_bound, upper_bound)[0],"= (maximum, minimum, average)")
                     elif dataType == "oximetry":
                         sql = "SELECT oximetria, tiempoRegistro FROM oximetria NATURAL JOIN biometrico WHERE username = %s AND tiempoRegistro BETWEEN %s AND %s"
-                        visualize(database(sql, user.username, lower_bound, upper_bound), dataType, "Registered " + dataType + " of " + user.name
+                        visualize(database(sql, contact.username, lower_bound, upper_bound), dataType, "Registered " + dataType + " of " + contact.name
                              + " between " + lower_bound.strftime("%d/%m/%Y %H:%M:%S") + " and " + upper_bound.strftime("%d/%m/%Y %H:%M:%S"))
                         if platform.system() == "Windows":
                             subprocess.run(["cls"], shell=True)
                         else:
                             subprocess.run(["clear"], shell=True)
+                        print(database("SELECT MAX(oximetria) AS max_value, MIN(oximetria) AS min_value, AVG(oximetria) AS avg_value FROM oximetria NATURAL JOIN biometrico WHERE username = %s AND tiempoRegistro BETWEEN %s AND %s",
+                        contact.username, lower_bound, upper_bound)[0],"= (maximum, minimum, average)")
                     else:
                         sql = "SELECT frecuenciaCardiaca, tiempoRegistro FROM frecuenciascardiacas NATURAL JOIN biometrico WHERE username = %s AND tiempoRegistro BETWEEN %s AND %s"
-                        visualize(database(sql, user.username, lower_bound, upper_bound), dataType, "Registered " + dataType + " of " + user.name
+                        visualize(database(sql, contact.username, lower_bound, upper_bound), dataType, "Registered " + dataType + " of " + contact.name
                              + " between " + lower_bound.strftime("%d/%m/%Y %H:%M:%S") + " and " + upper_bound.strftime("%d/%m/%Y %H:%M:%S"))
                         if platform.system() == "Windows":
                             subprocess.run(["cls"], shell=True)
                         else:
                             subprocess.run(["clear"], shell=True)
+                        print(database("SELECT MAX(frecuenciaCardiaca) AS max_value, MIN(frecuenciaCardiaca) AS min_value, AVG(frecuenciaCardiaca) AS avg_value FROM frecuenciascardiacas NATURAL JOIN biometrico WHERE username = %s AND tiempoRegistro BETWEEN %s AND %s",
+                        contact.username, lower_bound, upper_bound)[0],"= (maximum, minimum, average)")
             else:
                 print("Invalid data type. Returned to main menu.")
 
@@ -303,8 +349,8 @@ def main():
                 print("Can't see data - you need a device!")
                 continue
             print("Which device will you select?")
-            for i in range(len(devices)):
-                print(i)
+            for i, device in enumerate(devices):
+                print(str(i) + " - " + str(device.id))
             selection = int(input())
             for sensor in devices[selection].sensors:
                 if sensor.type == "oxim-fc":
@@ -383,7 +429,7 @@ def main():
                         print("Device Added! You can now start using it.")
                         break
 
-        elif command == "remove device":
+        elif command == "remove device" and has_logged_in:
             print("Current devices: ")
             for device in devices:
                 print(device.id)
@@ -401,6 +447,10 @@ def main():
                 else:
                     subprocess.run(["clear"], shell=True)
                 print("Aborted Deletion.")
+
+        elif command == "trust" and has_logged_in:
+            contact_username = input("Enter the username of the contact you wish to link this account with.")
+            user.link(contact_username)
         
         else:
             print("Please enter a valid command.\n")

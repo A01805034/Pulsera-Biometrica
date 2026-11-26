@@ -16,6 +16,10 @@ class Device:
             self.sensors.append(sensor)
         self.database = db.Database()
 
+    def add_sensor(self, id : int, model: str, type: str):
+        self.sensors.append(self.Sensor(id, model, type))
+        return self.database("INSERT INTO sensor VALUES (%s, %s, %s, %s)", id, self.id, model, type)
+
     def add(self):
         try:
             sql = "INSERT INTO dispositivo (idDispositivo, modelo) VALUES (%s, %s)"
