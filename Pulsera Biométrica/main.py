@@ -9,6 +9,7 @@ import datetime as dt
 import broker as bk
 import mysql
 from plyer import notification as nt
+import getpass
 
 def send_alert(device : dv.Device, user : us.User, time : dt.datetime, type : str, description : str):
     database = db.Database()
@@ -147,7 +148,7 @@ def main():
 
         elif command == "log in" and not has_logged_in:
             username = input("Please provide your username: ")
-            password = input("Please provide your password: ")
+            password = getpass.getpass(prompt= "Please provide your password: ", echo_char= '*')
             if platform.system() == "Windows":
                 subprocess.run(["cls"], shell=True)
             else:
@@ -193,7 +194,7 @@ def main():
             year = input("Provide your birth year: ")
             month = input("Provide your birth month: ")
             day = input("Provide your birth day: ")
-            password = input("Provide your password: ")
+            password = getpass.getpass(prompt= "Provide your password: ", echo_char= '*')
             phones = []
             emails = []
             events = []
