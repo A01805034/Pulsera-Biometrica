@@ -39,6 +39,9 @@ class Database:
         val = tuple(data)
         return self(query, *val)
 
+    def __del__(self):
+        self.connection.close()
+
 
 if __name__ == "__main__":
     test = Database()
