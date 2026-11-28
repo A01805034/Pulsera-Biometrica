@@ -26,7 +26,7 @@ class Device:
             self.database(sql, self.id, self.model)
             for sensor in self.sensors:
                 sql = "INSERT INTO sensor VALUES (%s, %s, %s, %s)"
-                self.database(sensor.id, self.id, sensor.model, sensor.type)
+                self.database(sql, sensor.id, self.id, sensor.model, sensor.type)
         except:
             print("Data Not Added!")
             return False
